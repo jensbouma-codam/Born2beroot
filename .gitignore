@@ -1,1 +1,7 @@
 .vscode/settings.json
+images/debian-11.5.0-amd64-netinst.iso
+images/debian-11.5.0-arm64-netinst.iso
+terraform.tfvars
+*.tfstate
+*.tfstate.backup
+*.tfstate.*
