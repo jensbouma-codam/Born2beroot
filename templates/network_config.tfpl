@@ -1,0 +1,9 @@
+version: 2
+ethernets:
+  enp1s0:
+%{if host.ip == "dhcp" ~}
+    dhcp4: true
+%{ endif ~}
+%{if host.ip != "dhcp" ~}
+    # Need Network Config Here
+%{ endif ~}

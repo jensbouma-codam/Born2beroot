@@ -26,7 +26,6 @@ variable "system_username" {
   description = "system username"
 }
 
-
 variable "TERRAFORM_LIBVIRT_TEST_DOMAIN_TYPE" {
   type = string
   default = "qemu"

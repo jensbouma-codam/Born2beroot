@@ -1,3 +1,8 @@
-system_username = "usernae"
+/* Rename me to tfvars!!! */
+
+/* Local System Username for path settings */
+system_username = "username"
+/* 42 Inra username for hostname setting */
 username_42 = "username"
+/* Image URL for cloudimage */
 image_name = "https://cloud.debian.org/images/cloud/bullseye/latest/debian-11-genericcloud-amd64.qcow2"

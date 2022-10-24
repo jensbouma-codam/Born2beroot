@@ -12,16 +12,32 @@
 # provided.
 #
 # Note: Content strings here are truncated for example purposes.
-hostname: jbouma42
+
+hostname: ${name}
+
+%{if host.public_key != ""}
+ssh_authorized_keys:
+  -  ${host.public_key}
+%{ endif ~}
+
+ssh_pwauth: true
+
 users:
   - default
-  - name: jbouma
-ssh_pwauth: true
+%{ for id, user in host.users ~}
+  - ${id}
+%{ endfor ~}
+
 chpasswd:
   list: |
-     debian:terraform-libvirt-linux
-     jbouma:test1234
+  %{ for id, user in host.users ~}
+    ${id}:${user.password.bcrypt_hash}
+  %{ endfor ~}
   expire: false
+
+package_update: false
+package_upgrade: false
+
 growpart:
   mode: auto
   devices: ['/']

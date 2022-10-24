@@ -10,7 +10,14 @@ This project is a guide to use terraform (and maybe Ansible) to install the comp
 ```
 **Install quemu & libvirt & cdrtools**
 ```
-  brew install qemu libvirt cdrtools tuntap
+  brew install qemu libvirt cdrtools 
+  <!-- automake autoconf -->
+```
+
+**Install virtmanager**
+```
+brew tap arthurk/homebrew-virt-manager
+brew install virt-manager virt-viewer
 ```
 
 **Disable QEMU security features**
@@ -18,6 +25,14 @@ This project is a guide to use terraform (and maybe Ansible) to install the comp
 echo 'security_driver = "none"' >> /opt/homebrew/etc/libvirt/qemu.conf
 echo "dynamic_ownership = 0" >> /opt/homebrew/etc/libvirt/qemu.conf
 echo "remember_owner = 0" >> /opt/homebrew/etc/libvirt/qemu.conf
+```
+
+**Install vde_vmnet**
+https://github.com/lima-vm/socket_vmnet
+```
+git clibe https://github.com/lima-vm/socket_vmnet.git
+cd socket_vmnet
+sudo make PREFIX=/opt/socket_vmnet install
 ```
 
 **Edit config files and setup networking**
@@ -64,8 +79,44 @@ virsh console 'Debian Cloud'            // Connect to serial console
 ssh -p 2222 root@localhost  // Connect to VM with SSH
 ```
 
+**Create disk of 8225M**
+
+apt update
+sudo apt-get install cryptsetup
+sudo apt-get install lvm2
+
+<!-- sudo dd if=/dev/zero of=/dev/nvme2n1 bs=512k count=16450 -->
+
+sudo sgdisk -og /dev/nvme2n1
+sudo sgdisk -og /dev/nvme2n1 && sudo sgdisk -n 1:0:+487M -n 2:0:+1K -n 3:0:+7680M  /dev/nvme2n1
+
+dd bs=512 count=4 if=/dev/random of=/home/debian/keyfile iflag=fullblock
+
+sudo cryptsetup -c aes-xts-plain -y -s 512 -h sha512 luksFormat --key-file=/home/debian/keyfile /dev/nvme2n1p3
+
+<!-- sudo cryptsetup --cipher=aes-xts-plain64 --offset=0 --key-file=/home/debian/keyfile --key-size=512 open --type=plain /dev/nvme2n1p3 crypt -->
+
+<!-- sudo cryptsetup luksFormat --key-file=/home/debian/keyfile  /dev/nvme2n1p3 -->
+sudo cryptsetup luksOpen --key-file=/home/debian/keyfile /dev/nvme2n1p3 crypt
+
+sudo pvcreate /dev/mapper/crypt
+
+sudo vgcreate jbouma-vg /dev/mapper/crypt 
+sudo lvcreate -L 2.750G -n root jbouma-vg
+sudo lvcreate -L 976M -n swap_1 jbouma-vg
+sudo lvcreate -L 3.750G -n home jbouma-vg
 
 
+sudo mkfs.ext4 -L root /dev/jbouma-vg/root 
+sudo mkfs.ext4 -L root /dev/jbouma-vg/swap_1 
+sudo mkfs.ext4 -L root /dev/jbouma-vg/home
+
+
+<!-- sudo dd if=/dev/nvme1n1p1 of=/dev/jbouma-vg/root bs=512 -->
+<!-- resize2fs /dev/sda1 -->
+
+sudo mkswap /dev/jbouma-vg/swap_1 
+swapon /dev/jbouma-vg/swap_1 
 
 https://discourse.brew.sh/t/failed-to-connect-socket-to-var-run-libvirt-libvirt-sock-no-such-file-or-directory/1297/2
 

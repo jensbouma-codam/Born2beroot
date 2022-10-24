@@ -5,3 +5,6 @@ terraform.tfvars
 *.tfstate
 *.tfstate.backup
 *.tfstate.*
+socket_vmnet
+libvirt-config
+.terraform
