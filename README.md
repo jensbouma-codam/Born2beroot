@@ -11,16 +11,15 @@ This project is a guide to use terraform (and maybe Ansible) to install the comp
 **Install quemu & libvirt & cdrtools**
 ```
   brew install qemu libvirt cdrtools 
-  <!-- automake autoconf -->
 ```
 
-**Install virtmanager**
+<!-- **Install virtmanager**
 ```
 brew tap arthurk/homebrew-virt-manager
 brew install virt-manager virt-viewer
-```
+``` -->
 
-**Disable QEMU security features**
+**Disable QEMU security features (as macos doesn't support this**
 ```
 echo 'security_driver = "none"' >> /opt/homebrew/etc/libvirt/qemu.conf
 echo "dynamic_ownership = 0" >> /opt/homebrew/etc/libvirt/qemu.conf
@@ -35,11 +34,6 @@ cd socket_vmnet
 sudo make PREFIX=/opt/socket_vmnet install
 ```
 
-**Edit config files and setup networking**
-
-virsh net-define network-default.xml Not working as i cant make the bridge yet.
-virsh net-start default
-
 **Install Libvirt service**
 ```
 brew services start libvirt
@@ -51,12 +45,8 @@ brew services start libvirt
   brew tap hashicorp/tap
   brew install hashicorp/tap/terraform
   m1-terraform-provider-helper activate
-  m1-terraform-provider-helper install hashicorp/template -v `v2.2.0
+  m1-terraform-provider-helper install hashicorp/template -v v2.2.0
 ```
-
-**Get Debian qcow2 Cloud Image**
-- Download image from: https://cloud.debian.org/images/cloud/bullseye/ to projectfolder 'images'
-- For M1 processor you can use the ARM version to run it native but it would't run on a x86 processor.
 
 **- Deploy Terraform code **
 ```

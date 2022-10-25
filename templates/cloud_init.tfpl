@@ -25,16 +25,16 @@ users:
 %{ for id, user in host.users ~}
   - name: ${id}
     # gecos: Foo B. Bar
-    sudo: ALL=(ALL) NOPASSWD:ALL
-    primary_group: admingroup
-    groups: 42user
+    # sudo: ALL=(ALL) NOPASSWD:ALL
+    # primary_group: admingroup
+    # groups: 42user
     # selinux_user: staff_u
     expiredate: '2032-09-01'
     # ssh_import_id:
     #  - lp:falcojr
     #  - gh:TheRealFalcon
     lock_passwd: false
-    plain_text_passwd: ${user.password.result}
+    # passwd: ${user.password.result}
 %{if host.public_key != ""}
     ssh_authorized_keys:
       -  ${host.public_key}
@@ -42,12 +42,12 @@ users:
 %{ endfor ~}
 
 
-# chpasswd:
-#   list: |
-#   %{ for id, user in host.users ~}
-#     ${id}:${user.password.bcrypt_hash}
-#   %{ endfor ~}
-#   expire: false
+chpasswd:
+  list: |
+%{ for id, user in host.users ~}
+    ${id}:${user.password.result}
+%{ endfor ~}
+  expire: false
 
 package_update: false
 package_upgrade: false

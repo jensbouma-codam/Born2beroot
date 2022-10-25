@@ -23,7 +23,7 @@ locals {
     (var.username_42) = {
         password = random_password.user_password
     }
-    "root"      = {
+    "debian"      = {
         password = random_password.root_password
     }
   }

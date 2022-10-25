@@ -12,13 +12,12 @@ variable "hostname_postfix" {
 variable "hostname_increment" {
   type = string
   default = 2
-  description = "The postfix increment"
+  description = "The postfix increment defaults on 2 because we have to print the number 42 in the beginning"
 }
 
 variable "image_name" {
   type = string
-  default = 42
-  description = "The postfix of the hostname"
+  description = "URL of the cloud image to run"
 }
 
 variable "system_username" {
