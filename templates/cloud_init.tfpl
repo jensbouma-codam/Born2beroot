@@ -15,25 +15,39 @@
 
 hostname: ${name}
 
-%{if host.public_key != ""}
-ssh_authorized_keys:
-  -  ${host.public_key}
-%{ endif ~}
-
 ssh_pwauth: true
+groups:
+  - admingroup: [root,sys]
+  - 42user
 
 users:
   - default
 %{ for id, user in host.users ~}
-  - ${id}
+  - name: ${id}
+    # gecos: Foo B. Bar
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    primary_group: admingroup
+    groups: 42user
+    # selinux_user: staff_u
+    expiredate: '2032-09-01'
+    # ssh_import_id:
+    #  - lp:falcojr
+    #  - gh:TheRealFalcon
+    lock_passwd: false
+    plain_text_passwd: ${user.password.result}
+%{if host.public_key != ""}
+    ssh_authorized_keys:
+      -  ${host.public_key}
+%{ endif ~}
 %{ endfor ~}
 
-chpasswd:
-  list: |
-  %{ for id, user in host.users ~}
-    ${id}:${user.password.bcrypt_hash}
-  %{ endfor ~}
-  expire: false
+
+# chpasswd:
+#   list: |
+#   %{ for id, user in host.users ~}
+#     ${id}:${user.password.bcrypt_hash}
+#   %{ endfor ~}
+#   expire: false
 
 package_update: false
 package_upgrade: false
