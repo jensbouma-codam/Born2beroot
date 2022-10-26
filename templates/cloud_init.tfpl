@@ -98,19 +98,20 @@ runcmd:
   - swapon /dev/LVMGroup/swap
   - mkdir /var/log
   - mkdir /srv
-  - mount /dev/vda1 /mnt
-  - mkdir /mnt2
-  - mount /dev/LVMGroup/root /mnt2 && rsync -zahP / /mnt2/ && umount /mnt2
-  - mount /dev/LVMGroup/var /mnt2 && rsync -zahP /var/ /mnt2/ && umount /mnt2
-  - mount /dev/LVMGroup/home /mnt2 && rsync -zahP /home/ /mnt2/ && umount /mnt2
   - mount /dev/LVMGroup/home /home
-  - mount /dev/LVMGroup/var /var
   - mount /dev/LVMGroup/srv /svr
   - mount /dev/LVMGroup/tmp /tmp
+  - mkdir /mnt2
+  - mount /dev/LVMGroup/var /mnt2 && rsync -zahP /var/ /mnt2/ && umount /mnt2
+  - mount /dev/LVMGroup/home /mnt2 && rsync -zahP /home/ /mnt2/ && umount /mnt2
+  - umount -l /var && mount /dev/LVMGroup/var /var
+  - umount -l /home && mount /dev/LVMGroup/home /home
   - mount /dev/LVMGroup/var--log /var/log
-  - sed  -i '2i /dev/mapper/crypt      /crypt                 ext4    defaults        0 0' /etc/fstab 
-  - lsblk -ndo UUID /dev/LVMGroup/root | sed -En  "2s/.*UUID='(.*)',/\0/p" /etc/fstab
-  - mount -a
+
+  # - mount -a
+  # - sed  -i '2i /dev/mapper/crypt      /crypt                 ext4    defaults        0 0' /etc/fstab 
+  # - lsblk -ndo UUID /dev/LVMGroup/root | sed -En  "2s/.*UUID='(.*)',/\0/p" /etc/fstab 
+  # - mount /dev/LVMGroup/home /mnt2 && rsync -zahP /home/ /mnt2/ && umount /mnt2
   # - dd if=/dev/vda1 of=/dev/LVMGroup/root bs=64k conv=noerror,sync
   # - cryptsetup -q -c aes-xts-plain -y -s 512 -h sha512 luksFormat --key-file=/home/debian/keyfile /dev/vdb3 
 
