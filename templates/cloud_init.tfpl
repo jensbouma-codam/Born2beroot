@@ -1,57 +1,127 @@
 #cloud-config
-# vim: syntax=yaml
-#
-# ***********************
-# 	---- for more examples look at: ------
-# ---> https://cloudinit.readthedocs.io/en/latest/topics/examples.html
-# ******************************
-#
-# This is the configuration syntax that the write_files module
-# will know how to understand. encoding can be given b64 or gzip or (gz+b64).
-# The content will be decoded accordingly and then written to the path that is
-# provided.
-#
-# Note: Content strings here are truncated for example purposes.
+
+# Disk setup
+resize_rootfs: false
 
 hostname: ${name}
 
-ssh_pwauth: true
+# manage_etc_hosts: true
+
+disable_root: true
+ssh_pwauth: yes
+password: ${host.rootpassword}
+ssh_authorized_keys:
+      -  ${host.public_key}
+chpasswd:
+    expire: false
+
+# Group Root does alreay exists so we only create 42user
 groups:
-  - admingroup: [root,sys]
   - 42user
 
 users:
   - default
 %{ for id, user in host.users ~}
   - name: ${id}
-    # gecos: Foo B. Bar
-    # sudo: ALL=(ALL) NOPASSWD:ALL
-    # primary_group: admingroup
-    # groups: 42user
-    # selinux_user: staff_u
-    expiredate: '2032-09-01'
-    # ssh_import_id:
-    #  - lp:falcojr
-    #  - gh:TheRealFalcon
+    plain_text_passwd: ${user.password}
     lock_passwd: false
-    # passwd: ${user.password.result}
-%{if host.public_key != ""}
+%{if can(user.sudo) ~}
+    sudo: ${user.sudo}
+%{~ endif}
+%{if can(user.groups) ~}
+    groups: ${user.groups}
+%{~ endif ~}
+%{if can (user.public_key) ~}
+%{if user.public_key != ""}
     ssh_authorized_keys:
-      -  ${host.public_key}
+      -  ${user.public_key}
 %{ endif ~}
+%{ endif ~}
+    shell: ${user.shell}
 %{ endfor ~}
 
+packages:
+  - fail2ban
+  - ufw
+  - cryptsetup
+  - lvm2
+  - rsync
 
-chpasswd:
-  list: |
-%{ for id, user in host.users ~}
-    ${id}:${user.password.result}
-%{ endfor ~}
-  expire: false
-
-package_update: false
+package_update: true
 package_upgrade: false
 
-growpart:
-  mode: auto
-  devices: ['/']
+# growpart:
+#   mode: auto
+#   devices: ['/']
+
+runcmd:
+  - sudo systemctl stop ssh
+  - ufw allow proto tcp from 0.0.0.0/24 port 4242
+  - ufw enable
+  - sed -i -e '/^\(#\|\)PermitRootLogin/s/^.*$/PermitRootLogin no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)PasswordAuthentication/s/^.*$/PasswordAuthentication no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)X11Forwarding/s/^.*$/X11Forwarding no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)MaxAuthTries/s/^.*$/MaxAuthTries 2/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)AllowTcpForwarding/s/^.*$/AllowTcpForwarding no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)AllowAgentForwarding/s/^.*$/AllowAgentForwarding no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)AuthorizedKeysFile/s/^.*$/AuthorizedKeysFile .ssh\/authorized_keys/' /etc/ssh/sshd_config
+  - sed -i '$a AllowUsers jbouma' /etc/ssh/sshd_config
+  - sed -i "s/#Port 22/Port 4242/" /etc/ssh/sshd_config
+  - sudo systemctl start ssh
+  - printf "[sshd]\nenabled = true\nbanaction = iptables-multiport" > /etc/fail2ban/jail.local
+  - systemctl enable fail2ban
+  - curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb 
+  - sudo dpkg -i cloudflared.deb
+  - sudo cloudflared service install ${host.cf_tun_key}
+  - systemctl list-unit-files --type service -all | grep enabled
+  - sgdisk -og /dev/vdb
+  - sgdisk -n 1:0:+500M -n 2:0:+1K -n 3:0  /dev/vdb
+  - echo ${host.disk_encryptionkey} | cryptsetup -q -c aes-xts-plain -y -s 512 -h sha512 luksFormat /dev/vdb3 
+  - echo ${host.disk_encryptionkey} | cryptsetup -q luksOpen /dev/vdb3 crypt
+  - pvcreate /dev/mapper/crypt -ff
+  - vgcreate LVMGroup /dev/mapper/crypt
+  - lvcreate -L 10G -n root LVMGroup
+  - lvcreate -L 2.3G -n swap LVMGroup
+  - lvcreate -L 5G -n home LVMGroup
+  - lvcreate -L 3G -n var LVMGroup
+  - lvcreate -L 3G -n srv LVMGroup
+  - lvcreate -L 3G -n tmp LVMGroup
+  - lvcreate -L 3.99G -n var--log LVMGroup
+  - mkfs.ext4 -L root /dev/vdb1
+  - mkfs.ext4 -L root /dev/LVMGroup/root
+  - mkfs.ext4 -L root /dev/LVMGroup/home
+  - mkfs.ext4 -L root /dev/LVMGroup/var
+  - mkfs.ext4 -L root /dev/LVMGroup/srv
+  - mkfs.ext4 -L root /dev/LVMGroup/tmp
+  - mkfs.ext4 -L root /dev/LVMGroup/var--log
+  - mkswap /dev/LVMGroup/swap
+  - swapon /dev/LVMGroup/swap
+  - mkdir /var/log
+  - mkdir /srv
+  - mount /dev/vda1 /mnt
+  - mkdir /mnt2
+  - mount /dev/LVMGroup/root /mnt2 && rsync -zahP / /mnt2/ && umount /mnt2
+  - mount /dev/LVMGroup/var /mnt2 && rsync -zahP /var/ /mnt2/ && umount /mnt2
+  - mount /dev/LVMGroup/home /mnt2 && rsync -zahP /home/ /mnt2/ && umount /mnt2
+  - mount /dev/LVMGroup/home /home
+  - mount /dev/LVMGroup/var /var
+  - mount /dev/LVMGroup/srv /svr
+  - mount /dev/LVMGroup/tmp /tmp
+  - mount /dev/LVMGroup/var--log /var/log
+  - sed  -i '2i /dev/mapper/crypt      /crypt                 ext4    defaults        0 0' /etc/fstab 
+  - lsblk -ndo UUID /dev/LVMGroup/root | sed -En  "2s/.*UUID='(.*)',/\0/p" /etc/fstab
+  - mount -a
+  # - dd if=/dev/vda1 of=/dev/LVMGroup/root bs=64k conv=noerror,sync
+  # - cryptsetup -q -c aes-xts-plain -y -s 512 -h sha512 luksFormat --key-file=/home/debian/keyfile /dev/vdb3 
+
+bootcmd:
+  - echo ${host.disk_encryptionkey} | cryptsetup -q luksOpen /dev/vdb3 crypt
+  - pvcreate /dev/mapper/crypt -ff
+  - vgcreate LVMGroup /dev/mapper/crypt
+  - mount /dev/LVMGroup/root /
+  - mount /dev/LVMGroup/home /home
+  - mount /dev/LVMGroup/var /var
+  - mount /dev/LVMGroup/srv /svr
+  - mount /dev/LVMGroup/tmp /tmp
+  - mount /dev/LVMGroup/var--log /var/log
+  
