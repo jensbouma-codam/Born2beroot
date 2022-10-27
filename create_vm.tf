@@ -64,7 +64,6 @@ resource "libvirt_volume" "datadisk" {
   pool   = libvirt_pool.debian.name
   format = "qcow2"
   size   = 33071248180
-  
 }
 
 
@@ -122,8 +121,8 @@ resource "libvirt_volume" "cloudinit" {
 resource "libvirt_domain" "domain-debian" {
   for_each = local.vms
   name   = each.key
-  memory = 1024
-  vcpu   = 2
+  memory = 1024 * 4
+  vcpu   = 6
   arch = "x86_64"
   machine = "q35"
   network_interface {
