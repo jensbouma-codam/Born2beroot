@@ -42,7 +42,7 @@ brew services start libvirt
   m1-terraform-provider-helper install hashicorp/template -v v2.2.0
 ```
 
-**Deploy Terraform code **
+**Deploy Terraform code**
 ```
 export TERRAFORM_LIBVIRT_TEST_DOMAIN_TYPE="qemu" 
 terraform init
