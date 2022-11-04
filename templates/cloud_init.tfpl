@@ -72,9 +72,9 @@ runcmd:
 %{endfor ~}
 %{for id, part in disk ~}
 %{if can(part.lvm) ~}
-  - echo "${host.disk_encryptionkey}" | cryptsetup -q -c aes-xts-plain -y -s 512 -h sha512 luksFormat /dev/${diskid}
-  - echo "${host.disk_encryptionkey}" | cryptsetup -q luksAddKey /dev/${diskid} ${part.mapper}
-  - echo "${host.disk_encryptionkey}" | cryptsetup -q luksOpen /dev/${diskid} ${part.mapper}
+  - echo "${host.disk_encryptionkey}" | cryptsetup -q -c aes-xts-plain -y -s 512 -h sha512 luksFormat /dev/${diskid}${id}
+  - echo "${host.disk_encryptionkey}" | cryptsetup -q luksAddKey /dev/${diskid}${id} ${part.mapper}
+  - echo "${host.disk_encryptionkey}" | cryptsetup -q luksOpen /dev/${diskid}${id} ${part.mapper}
   - pvcreate /dev/mapper/${part.mapper} -ff
   - vgcreate LVMGroup /dev/mapper/${part.mapper}
 %{if can(part.lvmname) ~}
