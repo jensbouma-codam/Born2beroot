@@ -51,10 +51,6 @@ packages:
 
 package_upgrade: false
 
-# growpart:
-#   mode: auto
-#   devices: ['/']
-
 runcmd:
   - sudo systemctl stop ssh
   - mkdir /mnt/target
@@ -65,7 +61,7 @@ runcmd:
   - mkfs.ext4 %{if can(part.name)}-L ${part.name}%{endif} /dev/${diskid}${id}
 %{if can(part.boot) ~}
   - mount /dev/${diskid}${id} /mnt/target
-  - rsync -zahP /boot /mnt/target
+  - rsync -zahP /boot/ /mnt/target
   - umount -l /mnt/target
   - mount /dev/${diskid}${id} ${part.mountpoint}
 %{endif ~}
@@ -88,7 +84,7 @@ runcmd:
 %{if can(lvmpart.mountpoint) ~}
   - mkdir -p ${lvmpart.mountpoint}
   - mount /dev/${part.lvmname}/${partid} /mnt/target
-  - rsync -zahP -exclude 'mnt' ${lvmpart.mountpoint}/ /mnt/target
+  - rsync -zahP --exclude 'mnt' ${lvmpart.mountpoint}/ /mnt/target
   - umount /mnt/target
   - mount /dev/${part.lvmname}/${partid} ${lvmpart.mountpoint}/
 %{endif ~}
