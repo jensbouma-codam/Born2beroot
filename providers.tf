@@ -40,12 +40,12 @@ resource "random_string" "disk_encryptionkey" {
 }
 
 output "user_password" {
-  value = random_password.root_password
+  value = random_password.user_password
   sensitive = true
 }
 
 output "root_password" {
-  value = random_password.user_password
+  value = random_password.root_password
   sensitive = true
 }
 

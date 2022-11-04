@@ -5,11 +5,25 @@ locals {
       ip    = "dhcp"
       public_key = file("~/.ssh/id_rsa.pub")
       users = local.default_users
+      groups = local.default_groups
+      rootpassword = random_password.root_password.result
+      cf_tun_key  = "eyJhIjoiNDc1NWNiMTMyZWM4Mzk5ODljMWIwYzY4YzE3MTc1MGEiLCJ0IjoiNmU1ZGE5ODItYzhkYS00MGRkLWJlN2UtMjhlYjE4MGY4ZjhkIiwicyI6Ik5qUTFZV0kwTURjdE5EaGhaaTAwTURjeUxUbGxNbUV0WkdNd05qUmxabVppWkROaCJ9"
+      disk_encryptionkey = random_string.disk_encryptionkey.result
+   }
+   "${var.username_42}${var.hostname_postfix}${var.hostname_increment + 1}" = {
+			tag		= "standalone"
+      ip    = "dhcp"
+      public_key = file("~/.ssh/id_rsa.pub")
+      users = local.default_users
+      groups = local.default_groups
       rootpassword = random_password.root_password.result
       cf_tun_key  = "eyJhIjoiNDc1NWNiMTMyZWM4Mzk5ODljMWIwYzY4YzE3MTc1MGEiLCJ0IjoiNmU1ZGE5ODItYzhkYS00MGRkLWJlN2UtMjhlYjE4MGY4ZjhkIiwicyI6Ik5qUTFZV0kwTURjdE5EaGhaaTAwTURjeUxUbGxNbUV0WkdNd05qUmxabVppWkROaCJ9"
       disk_encryptionkey = random_string.disk_encryptionkey.result
    }
   }
+  default_groups = [
+    "42user"
+  ]
   default_users = {
     (var.username_42) = {
         password = random_password.user_password.result
@@ -121,8 +135,8 @@ resource "libvirt_volume" "cloudinit" {
 resource "libvirt_domain" "domain-debian" {
   for_each = local.vms
   name   = each.key
-  memory = 1024 * 4
-  vcpu   = 6
+  memory = 4096
+  vcpu   = 2
   arch = "x86_64"
   machine = "q35"
   network_interface {

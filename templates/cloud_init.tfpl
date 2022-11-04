@@ -3,9 +3,9 @@
 # Disk setup
 resize_rootfs: false
 
+# Setup hostname and /etc/hosts 
 hostname: ${name}
-
-# manage_etc_hosts: true
+manage_etc_hosts: true
 
 disable_root: true
 ssh_pwauth: yes
@@ -17,7 +17,9 @@ chpasswd:
 
 # Group Root does alreay exists so we only create 42user
 groups:
-  - 42user
+%{ for id, group in host.groups ~}
+  - ${group}
+%{ endfor ~}
 
 users:
   - default
@@ -47,61 +49,57 @@ packages:
   - lvm2
   - rsync
 
-package_update: true
 package_upgrade: false
 
 # growpart:
 #   mode: auto
 #   devices: ['/']
 
+
+  # - dd bs=512 count=4 if=/dev/random of=/root/key iflag=fullblock
+  # - cryptsetup -q -c aes-xts-plain -y -s 512 -h sha512 luksFormat /dev/vdb3 --key-file /root/key
+  # - cryptsetup -q luksAddKey /dev/vdb3 crypt --key-file /root/key
+  # - echo "${host.disk_encryptionkey}" | cryptsetup -q luksAddKey /dev/vdb3 crypt
+  # - cryptsetup -q luksOpen /dev/vdb3 crypt --key-file /root/key
+  # - pvcreate /dev/mapper/crypt -ff
+  # - vgcreate LVMGroup /dev/mapper/crypt
+  # - mkfs.ext4 -L root /dev/vdb1
+  # - mkfs.ext4 -L root /dev/LVMGroup/root
+  # - mkfs.ext4 -L root /dev/LVMGroup/home
+  # - mkfs.ext4 -L root /dev/LVMGroup/var
+  # - mkfs.ext4 -L root /dev/LVMGroup/srv
+  # - mkfs.ext4 -L root /dev/LVMGroup/tmp
+  # - mkfs.ext4 -L root /dev/LVMGroup/var--log
+  # - mkswap /dev/LVMGroup/swap
+  # - swapon /dev/LVMGroup/swap
+  # - mkdir /var/log
+  # - mkdir /srv
+  # - mkdir /mnt2
+  # - mount /dev/vda /mnt && mount /dev/LVMGroup/root /mnt2 && rsync -zahP -exclude '/mnt2/*' /mnt/ /mnt2/ && umount /mnt2 && umount /mnt
+  # - mount /dev/vdb1 /mnt2 && rsync -zahP /boot /mnt2/ && umount /mnt2
+  # - mount /dev/LVMGroup/home /mnt2 && rsync -zahP /home/ /mnt2/ && umount /mnt2
+  # - mount /dev/LVMGroup/var /mnt2 && rsync -zahP /var/ /mnt2/ && umount /mnt2
+  # - mkdir /crypt
+  # - lsblk -ndo UUID /dev/vdb3 | awk '{print "UUID=" $1"        /dev/mapper/crypt    /keyfiles:/root/key   luks"}' | sudo tee /etc/crypttab
+  # - sed  -i '2i /dev/mapper/crypt                                   /crypt               ext4    defaults        0 0' /etc/fstab
+  # - lsblk -ndo UUID /dev/LVMGroup/root | sed -En  "2s/.*UUID='(.*)',/\0/p" /etc/fstab
+  # - lsblk -ndo UUID /dev/LVMGroup/home | sed -Eni  "/\0/p" /etc/fstab
+  # - lsblk -ndo UUID /dev/LVMGroup/home | awk '{print "UUID="$1"        /home                 ext4    defaults        0 0"}' | tee -a /etc/fstab
+  # - lsblk -ndo UUID /dev/LVMGroup/var | awk '{print "UUID="$1"        /var                 ext4    defaults        0 0"}' | tee -a /etc/fstab
+  # - lsblk -ndo UUID /dev/LVMGroup/srv | awk '{print "UUID="$1"        /srv                 ext4    defaults        0 0"}' | tee -a /etc/fstab
+  # - lsblk -ndo UUID /dev/LVMGroup/tmp | awk '{print "UUID="$1"        /tmp                 ext4    defaults        0 0"}' | tee -a /etc/fstab
+  # - lsblk -ndo UUID /dev/LVMGroup/var--log | awk '{print "UUID="$1"        /var/log             ext4    defaults        0 0"}' | tee -a /etc/fstab
+  # - lsblk -ndo UUID /dev/vdb1 | awk '{print "UUID="$1"        /boot                ext4    defaults        0 0"}' | tee -a /etc/fstab
+  # - mount -la
 runcmd:
+  - echo "Setup 2nd Disk"
   - sgdisk -og /dev/vdb
   - sgdisk -n 1:0:+500M -n 2:0:+1K -n 3:0  /dev/vdb
-  - dd bs=512 count=4 if=/dev/random of=/root/key iflag=fullblock
-  - cryptsetup -q -c aes-xts-plain -y -s 512 -h sha512 luksFormat /dev/vdb3 --key-file /root/key
-  - cryptsetup -q luksAddKey /dev/vdb3 crypt --key-file /root/key
-  - echo "${host.disk_encryptionkey}" | cryptsetup -q luksAddKey /dev/vdb3 crypt
-  - cryptsetup -q luksOpen /dev/vdb3 crypt --key-file /root/key
-  - pvcreate /dev/mapper/crypt -ff
-  - vgcreate LVMGroup /dev/mapper/crypt
-  - lvcreate -L 10G -n root LVMGroup
-  - lvcreate -L 2.3G -n swap LVMGroup
-  - lvcreate -L 5G -n home LVMGroup
-  - lvcreate -L 3G -n var LVMGroup
-  - lvcreate -L 3G -n srv LVMGroup
-  - lvcreate -L 3G -n tmp LVMGroup
-  - lvcreate -L 3.99G -n var--log LVMGroup
-  - mkfs.ext4 -L root /dev/vdb1
-  - mkfs.ext4 -L root /dev/LVMGroup/root
-  - mkfs.ext4 -L root /dev/LVMGroup/home
-  - mkfs.ext4 -L root /dev/LVMGroup/var
-  - mkfs.ext4 -L root /dev/LVMGroup/srv
-  - mkfs.ext4 -L root /dev/LVMGroup/tmp
-  - mkfs.ext4 -L root /dev/LVMGroup/var--log
-  - mkswap /dev/LVMGroup/swap
-  - swapon /dev/LVMGroup/swap
-  - mkdir /var/log
-  - mkdir /srv
-  - mkdir /mnt2
-  - mount /dev/vda /mnt && mount /dev/LVMGroup/root /mnt2 && rsync -zahP -exclude '/mnt2/*' /mnt/ /mnt2/ && umount /mnt2 && umount /mnt
-  - mount /dev/vdb1 /mnt2 && rsync -zahP /boot /mnt2/ && umount /mnt2
-  - mount /dev/LVMGroup/home /mnt2 && rsync -zahP /home/ /mnt2/ && umount /mnt2
-  - mount /dev/LVMGroup/var /mnt2 && rsync -zahP /var/ /mnt2/ && umount /mnt2
-  - mkdir /crypt
-  - lsblk -ndo UUID /dev/vdb3 | awk '{print "UUID=" $1"        /dev/mapper/crypt    /keyfiles:/root/key   luks"}' | sudo tee /etc/crypttab
-  - sed  -i '2i /dev/mapper/crypt                                   /crypt               ext4    defaults        0 0' /etc/fstab
-  - lsblk -ndo UUID /dev/LVMGroup/root | sed -En  "2s/.*UUID='(.*)',/\0/p" /etc/fstab
-  - lsblk -ndo UUID /dev/LVMGroup/home | sed -Eni  "/\0/p" /etc/fstab
-  - lsblk -ndo UUID /dev/LVMGroup/home | awk '{print "UUID="$1"        /home                 ext4    defaults        0 0"}' | tee -a /etc/fstab
-  - lsblk -ndo UUID /dev/LVMGroup/var | awk '{print "UUID="$1"        /var                 ext4    defaults        0 0"}' | tee -a /etc/fstab
-  - lsblk -ndo UUID /dev/LVMGroup/srv | awk '{print "UUID="$1"        /srv                 ext4    defaults        0 0"}' | tee -a /etc/fstab
-  - lsblk -ndo UUID /dev/LVMGroup/tmp | awk '{print "UUID="$1"        /tmp                 ext4    defaults        0 0"}' | tee -a /etc/fstab
-  - lsblk -ndo UUID /dev/LVMGroup/var--log | awk '{print "UUID="$1"        /var/log             ext4    defaults        0 0"}' | tee -a /etc/fstab
-  - lsblk -ndo UUID /dev/vdb1 | fawk '{print "UUID="$1"        /boot                ext4    defaults        0 0"}' | tee -a /etc/fstab
-  - mount -la
+  - echo "Stop SSH and config Firewall"
   - sudo systemctl stop ssh
   - ufw allow proto tcp from 0.0.0.0/24 port 4242
   - ufw enable
+  - echo "Config and start SSH"
   - sed -i -e '/^\(#\|\)PermitRootLogin/s/^.*$/PermitRootLogin no/' /etc/ssh/sshd_config
   - sed -i -e '/^\(#\|\)PasswordAuthentication/s/^.*$/PasswordAuthentication no/' /etc/ssh/sshd_config
   - sed -i -e '/^\(#\|\)X11Forwarding/s/^.*$/X11Forwarding no/' /etc/ssh/sshd_config
@@ -112,16 +110,17 @@ runcmd:
   - sed -i '$a AllowUsers jbouma' /etc/ssh/sshd_config
   - sed -i "s/#Port 22/Port 4242/" /etc/ssh/sshd_config
   - sudo systemctl start ssh
+  - echo "Setup Fail2Ban"
   - printf "[sshd]\nenabled = true\nbanaction = iptables-multiport" > /etc/fail2ban/jail.local
   - systemctl enable fail2ban
+  - systemctl restart fail2ban
+  - echo "Install Cloudflare"
   - curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb 
   - sudo dpkg -i cloudflared.deb
   - sudo cloudflared service install ${host.cf_tun_key}
+  - echo "Show active packages"
   - systemctl list-unit-files --type service -all | grep enabled
-  - rm cloudflared.deb
-  - rm -r mnt2
-  
-
+  # - rm -r mnt2
   # - sed  -i '2i /dev/mapper/crypt                                   /crypt               ext4    defaults        0 0' /etc/fstab
   # - mount /dev/LVMGroup/home /home
   # - mount /dev/vdb1 /boot
