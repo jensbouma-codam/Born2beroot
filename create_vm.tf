@@ -48,7 +48,7 @@ locals {
         lvm = {
           "root" = {
             size = "10G"
-            mountpoint = "/"
+            mountpoint = ""
           }
           "swap" = {
             size = "2.3GB"

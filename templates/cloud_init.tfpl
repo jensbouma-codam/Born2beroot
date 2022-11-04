@@ -88,9 +88,9 @@ runcmd:
 %{if can(lvmpart.mountpoint) ~}
   - mkdir -p ${lvmpart.mountpoint}
   - mount /dev/${part.lvmname}/${partid} /mnt/target
-  - rsync -zahP -exclude '/mnt/target/*' {lvmpart.mountpoint}/ /mnt/target
+  - rsync -zahP -exclude 'mnt' ${lvmpart.mountpoint}/ /mnt/target
   - umount /mnt/target
-  - mount /dev/${part.lvmname}/${partid} ${lvmpart.mountpoint}
+  - mount /dev/${part.lvmname}/${partid} ${lvmpart.mountpoint}/
 %{endif ~}
 %{endfor ~}
 %{endif ~}
@@ -116,7 +116,7 @@ runcmd:
   - curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb 
   - sudo dpkg -i cloudflared.deb
   - sudo cloudflared service install ${host.cf_tun_key}
-  - grub-install /dev/vdb1
+  # - grub-install /dev/vdb1
   
 
   
