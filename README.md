@@ -59,8 +59,12 @@ virsh reboot  'Debian Cloud'            // Reboot
 virsh destroy 'Debian Cloud'            // Force Shutdown
 virsh undefine --nvram 'Debian Cloud'   // Remove VM
 virsh console 'Debian Cloud'            // Connect to serial console
+```
 
+**Usefull commands**
+```
 ssh -p 2222 root@localhost  // Connect to VM with SSH
+```
 
 https://discourse.brew.sh/t/failed-to-connect-socket-to-var-run-libvirt-libvirt-sock-no-such-file-or-directory/1297/2
 
