@@ -163,5 +163,5 @@ resource "libvirt_domain" "domain-debian" {
     volume_id = libvirt_volume.datadisk[each.key].id
   }
 
-  cloudinit = libvirt_cloudinit_disk.cloud-init[each.key].id
+  /* cloudinit = libvirt_cloudinit_disk.cloud-init[each.key].id */
 }
