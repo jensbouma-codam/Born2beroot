@@ -57,7 +57,6 @@ package_upgrade: false
 
 runcmd:
   - sudo systemctl stop ssh
-  - mkdir /mnt/source
   - mkdir /mnt/target
 %{for diskid, disk in host.partitions ~}
   - sgdisk -og /dev/${diskid}
@@ -66,10 +65,8 @@ runcmd:
   - mkfs.ext4 %{if can(part.name)}-L ${part.name}%{endif} /dev/${diskid}${id}
 %{if can(part.boot) ~}
   - mount /dev/${diskid}${id} /mnt/target
-  - mount /dev/vda15 /mnt/source
-  - rsync -zahP /mnt/source/ /mnt/target
-  - umount /mnt/target
-  - umount /mnt/source
+  - rsync -zahP /boot /mnt/target
+  - umount -l /mnt/target
   - mount /dev/${diskid}${id} ${part.mountpoint}
 %{endif ~}
 %{endfor ~}
@@ -80,7 +77,6 @@ runcmd:
   - echo "${host.disk_encryptionkey}" | cryptsetup -q luksOpen /dev/${diskid} ${part.mapper}
   - pvcreate /dev/mapper/${part.mapper} -ff
   - vgcreate LVMGroup /dev/mapper/${part.mapper}
-  - mount /dev/vda1 /mnt/source
 %{if can(part.lvmname) ~}
 %{~ for partid, lvmpart in part.lvm ~}
   - lvcreate -L ${lvmpart.size} -n ${partid} ${part.lvmname}
@@ -92,7 +88,7 @@ runcmd:
 %{if can(lvmpart.mountpoint) ~}
   - mkdir -p ${lvmpart.mountpoint}
   - mount /dev/${part.lvmname}/${partid} /mnt/target
-  - rsync -zahP -exclude '/mnt/target/*' /mnt/source${lvmpart.mountpoint}/ /mnt/target
+  - rsync -zahP -exclude '/mnt/target/*' {lvmpart.mountpoint}/ /mnt/target
   - umount /mnt/target
   - mount /dev/${part.lvmname}/${partid} ${lvmpart.mountpoint}
 %{endif ~}
@@ -100,9 +96,7 @@ runcmd:
 %{endif ~}
 %{endif ~}
 %{endfor ~}
-  - umount /mnt/source
   - rm -r /mnt/target
-  - rm -r /mnt/source
 %{endfor ~}
   - ufw allow proto tcp from 0.0.0.0/24 port 4242
   - ufw enable
