@@ -11,17 +11,6 @@ locals {
       disk_encryptionkey = random_string.disk_encryptionkey.result
       partitions = local.partitions
    }
-   "${var.username_42}${var.hostname_postfix}${var.hostname_increment + 1}" = {
-			tag		= "standalone"
-      ip    = "dhcp"
-      public_key = file("~/.ssh/id_rsa.pub")
-      users = local.default_users
-      groups = local.default_groups
-      rootpassword = random_password.root_password.result
-      cf_tun_key  = "eyJhIjoiNDc1NWNiMTMyZWM4Mzk5ODljMWIwYzY4YzE3MTc1MGEiLCJ0IjoiNmU1ZGE5ODItYzhkYS00MGRkLWJlN2UtMjhlYjE4MGY4ZjhkIiwicyI6Ik5qUTFZV0kwTURjdE5EaGhaaTAwTURjeUxUbGxNbUV0WkdNd05qUmxabVppWkROaCJ9"
-      disk_encryptionkey = random_string.disk_encryptionkey.result
-      partitions = local.partitions
-   }
   }
   default_groups = [
     "42user"
@@ -30,7 +19,7 @@ locals {
     (var.username_42) = {
         password = random_password.user_password.result
         public_key = file("~/.ssh/id_rsa.pub")
-        /* sudo = "ALL=(ALL) NOPASSWD:ALL" */
+        /* sudo = "ALL=(ALL) NOPASSWD:ALL" For no password SUDO*/
         sudo = "ALL=(ALL) ALL"
         shell = "/bin/bash"
         groups = "root, 42user"
@@ -46,6 +35,7 @@ locals {
       1 = {
         size = "+500M"
         name = "boot"
+        boot = true
         mountpoint = "/boot"
       }
       2 = {
