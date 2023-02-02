@@ -5,7 +5,7 @@ CPU_LOAD=$(cat /proc/stat |grep cpu |tail -1|awk '{print ($5*100)/($2+$3+$4+$5+$
 OS_KERNEL_RELASE=$(uname -r)
 OS_KERNEL_NAME=$(uname -s)
 OS_KERNEL_VERSION=$(uname -v)
-# OS_RELEASE=$(lsb_release -d | cut -f 2-)
+OS_RELEASE=$(lsb_release -d | cut -f 2-)
 OS_NAME=$(uname -o)
 MACHINE=$(uname -m)
 
@@ -24,7 +24,7 @@ MEM_PERC=$(free | grep Mem | awk '{print $3/$2 * 100.0}' | awk '{printf("%d\n",$
 
 DISK_TOTAL=$(lsblk | grep "^sda"  | awk '{print $4}' | rev | cut -c2- | rev)
 DISK_TOTAL_MB=$(echo "scale=2;$DISK_TOTAL*1024" | bc | awk '{printf("%d\n",$1 + 0.5)}')
-DISK_USED_MB=$(df 	-Bm | awk '{ sum += $3 } END { print sum }')
+DISK_USED_MB=$(df -Bm | awk '{ sum += $3 } END { print sum }')
 DISK_USED_PERC=$(echo "scale=10;( 100 / $DISK_TOTAL_MB) * $DISK_USED_MB" | bc | awk '{printf("%d\n",$1 + 0.5)}')
 
 NET_EST=$(netstat -s | grep 'connections established' | awk '{print $1}')
@@ -42,61 +42,62 @@ else
 fi
 
 TIME=$(date +"%T")
+HOUR=$(date +"%H")
 
-if [ $(date +"%H") -gt 1 ] || [ $(date +"%H") -gt 13 ]
+if [ $HOUR=01 ] || [ $HOUR=13 ]
 then
   TIME_WORD="Uno"
 fi
-if [ $(date +"%H") -gt 2 ] || [ $(date +"%H") -gt 14 ]
+if [ $HOUR=02 ] || [ $HOUR=14 ]
 then
   TIME_WORD="Dos"
 fi
-if [ $(date +"%H") -gt 3 ] || [ $(date +"%H") -gt 15 ]
+if [ $HOUR=03 ] || [ $HOUR=15 ]
 then
   TIME_WORD="Tres"
 fi
-if [ $(date +"%H") -gt 4 ] || [ $(date +"%H") -gt 16 ]
+if [ $HOUR=04 ] || [ $HOUR=16 ]
 then
   TIME_WORD="Cuatro"
 fi
-if [ $(date +"%H") -gt 5 ] || [ $(date +"%H") -gt 17 ]
+if [ $HOUR=05 ] || [ $HOUR=17 ]
 then
   TIME_WORD="Cinco"
 fi
-if [ $(date +"%H") -gt 6 ] || [ $(date +"%H") -gt 18 ]
+if [ $HOUR=06 ] || [ $HOUR=18 ]
 then
   TIME_WORD="Seis"
 fi
-if [ $(date +"%H") -gt 7 ] || [ $(date +"%H") -gt 19 ] 
+if [ $HOUR=07 ] || [ $HOUR=19 ] 
 then
   TIME_WORD="Siete"
 fi
-if [ $(date +"%H") -gt 8 ] || [ $(date +"%H") -gt 20 ]
+if [ $HOUR=08 ] || [ $HOUR=20 ]
 then
   TIME_WORD="Ocho"
 fi
-if [ $(date +"%H") -gt 9 ] || [ $(date +"%H") -gt 21 ]
+if [ $HOUR=09 ] || [ $HOUR=21 ]
 then
   TIME_WORD='Nueve'
 fi
-if [ $(date +"%H") -gt 10 ] || [ $(date +"%H") -gt 22 ]
+if [ $HOUR=10 ] || [ $HOUR=22 ]
 then
   TIME_WORD="Diez"
 fi
-if [ $(date +"%H") -gt 11 ] || [ $(date +"%H") -gt 23 ]
+if [ $HOUR=11 ] || [ $HOUR=23 ]
 then
   TIME_WORD="Once"
 fi
-if [ $(date +"%H") -gt 12 ] || [ $(date +"%H") -gt 0 ]
+if [ $HOUR=12 ] || [ $HOUR=00 ]
 then
   TIME_WORD="Doce"
 fi
 
-if [ $(date +"%H") -gt 12 ]
+if [ $HOUR=12 ]
 then
-  BROADCAST_TEXT='"Radio reloj '$TIME_WORD' de la madrugada No todo lo que es oro brilla" - Manu Chao'
+  BROADCAST_TEXT='"Radio reloj '$TIME_WORD' de la madrugada No todo lo que es oro brilla." - Manu Chao'
 else
-  BROADCAST_TEXT='"Radio reloj '$TIME_WORD' de la mañana No todo lo que es oro brilla" - Manu Chao'
+  BROADCAST_TEXT='"Radio reloj '$TIME_WORD' de la mañana No todo lo que es oro brilla." - Manu Chao'
 fi
 
 wall -n "

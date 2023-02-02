@@ -1,0 +1,14 @@
+---
+- name: Set hostnames to servers
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+  # - name: Set a hostname
+  #   ansible.builtin.hostname:
+  #     name: '{{inventory_hostname}}'
+
+  - name: Set a hostname specifying strategy
+    ansible.builtin.hostname:
+      name: '{{inventory_hostname}}'
+      use: debian

@@ -19,7 +19,6 @@ groups:
 %{endfor ~}
 
 users:
-  - default
 %{for id, user in host.users ~}
   - name: ${id}
     plain_text_passwd: ${user.password}
@@ -36,6 +35,7 @@ users:
       -  ${user.public_key}
 %{endif ~}
 %{endif ~}
+    shell: ${user.shell}
 %{endfor ~}
 
 packages:
@@ -44,10 +44,23 @@ packages:
   - curl
   - libpam-cracklib
   - bc
+  - zsh
+  - git
 
 package_upgrade: false
 
+write_files:
+- content: |
+    ${indent(4, cronscript)}
+  path: /home/root/broadcast.sh
+  permissions: '0755'
+- content: |
+    */10 * * * * root /home/root/broadcast.sh
+  path: /etc/crontab
+  append: true
+
 runcmd:
+  - userdel debian
   - echo "Set sudo password rules"
   - sed -i -e '$aDefaults badpass_message="Never gonna give you up Never gonna let you down Never gonna run around and desert you Never gonna make you cry Never gonna say goodbye Never gonna tell a lie and hurt you"' /etc/sudoers
   - sed -i -e '$aDefaults passwd_tries=3' /etc/sudoers
@@ -88,29 +101,10 @@ runcmd:
   - curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb 
   - dpkg -i cloudflared.deb
   - cloudflared service install ${host.cf_tun_key}
-
-
-
-vCPU=$(cat /proc/cpuinfo | grep processor | wc -l)
-time=$(date +"%T")
-
-if [ $(date +"%H") -gt 1 || $(date +"%H") -gt 13] then timeword = "Uno" fi
-if [ $(date +"%H") -gt 2 || $(date +"%H") -gt 14] then timeword = "Dos" fi
-if [ $(date +"%H") -gt 3 || $(date +"%H") -gt 15] then timeword = "Tres" fi
-if [ $(date +"%H") -gt 4 || $(date +"%H") -gt 16] then timeword = "Cuatro" fi
-if [ $(date +"%H") -gt 5 || $(date +"%H") -gt 17] then timeword = "Cinco" fi
-if [ $(date +"%H") -gt 6 || $(date +"%H") -gt 18] then timeword = "Seis" fi
-if [ $(date +"%H") -gt 7 || $(date +"%H") -gt 19] then timeword = "Siete" fi
-if [ $(date +"%H") -gt 8 || $(date +"%H") -gt 20] then timeword = "Ocho" fi
-if [ $(date +"%H") -gt 9 || $(date +"%H") -gt 21] then timeword = "Nueve" fi
-if [ $(date +"%H") -gt 10 || $(date +"%H") -gt 22] then timeword = "Diez" fi
-if [ $(date +"%H") -gt 11 || $(date +"%H") -gt 23] then timeword = "Once" fi
-if [ $(date +"%H") -gt 12 || $(date +"%H") -gt 0] then timeword = "Doce" fi
-
-if [ $(date +"%H") -gt 12 ]
-then
-  broadcast='"Radio reloj $timeword de la madrugada No todo lo que es oro brilla" - Manu Chao'
-else
-  broadcast='"Radio reloj $timeword de la mañana No todo lo que es oro brilla" - Manu Chao'
-fi
-echo "vCPU(s)\t:\t$vCPU"
+  - sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
+  
+  ansible:
+  install_method: distro
+  pull:
+    url: "https://github.com/jbouma/born2beroot.git"
+    playbook_name: /ansible/playbooks/k3s-ansible.yml

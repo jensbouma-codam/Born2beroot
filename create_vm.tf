@@ -9,7 +9,7 @@ locals {
       rootpassword = random_password.root_password.result
       cf_tun_key  = "eyJhIjoiNDc1NWNiMTMyZWM4Mzk5ODljMWIwYzY4YzE3MTc1MGEiLCJ0IjoiNmU1ZGE5ODItYzhkYS00MGRkLWJlN2UtMjhlYjE4MGY4ZjhkIiwicyI6Ik5qUTFZV0kwTURjdE5EaGhaaTAwTURjeUxUbGxNbUV0WkdNd05qUmxabVppWkROaCJ9"
       disk_encryptionkey = random_string.disk_encryptionkey.result
-      partitions = local.partitions
+      /* partitions = local.partitions */
    }
   }
   default_groups = [
@@ -20,8 +20,10 @@ locals {
         password = random_password.user_password.result
         public_key = file("~/.ssh/id_rsa.pub")
         /* sudo = "ALL=(ALL) NOPASSWD:ALL" For no password SUDO*/
-        sudo = "ALL=(ALL)"
+        sudo = "ALL=(ALL) ALL"
         groups = "root, 42user"
+        shell = "/usr/bin/zsh"
+        /* shell = "/bin/bash" */
     }
   }
   /* partitions = {
@@ -83,6 +85,7 @@ data "template_file" "user_data" {
         {
         name            = each.key
         host            = each.value
+        cronscript      = file("${path.module}/templates/broadcast.sh",)
         }
   )
 }
