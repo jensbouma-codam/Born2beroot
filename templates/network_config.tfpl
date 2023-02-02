@@ -1,9 +1,9 @@
 version: 2
 ethernets:
-  ens2:
+  enp0s6:
 %{if host.ip == "dhcp" ~}
     dhcp4: true
 %{ endif ~}
 %{if host.ip != "dhcp" ~}
-    # Need Network Config Here
+    addresss: [ ${host.ip} ]
 %{ endif ~}

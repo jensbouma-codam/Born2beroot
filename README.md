@@ -73,6 +73,10 @@ https://discourse.brew.sh/t/failed-to-connect-socket-to-var-run-libvirt-libvirt-
   - Making and debugging an cloud-init file cost a lot of time!
   - Its hard to move/reinstall your system from a cloud image to another drive.
 
+
+wget -O - https://github.com/jensbouma.keys >> ~/.ssh/authorized_keys
+
+
 <!-- 
 
 // Need to know how to setup a account

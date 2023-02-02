@@ -4,6 +4,7 @@ locals {
 			tag		= "standalone"
       ip    = "dhcp"
       public_key = file("~/.ssh/id_rsa.pub")
+      private_key = tls_private_key.ssh.private_key_openssh
       users = local.default_users
       groups = local.default_groups
       rootpassword = random_password.root_password.result
@@ -158,3 +159,7 @@ resource "libvirt_domain" "domain-debian" {
 
   cloudinit = libvirt_cloudinit_disk.cloud-init[each.key].id
 }
+
+/* 
+[FAILED] Failed to start Set console font and keymap.
+See 'systemctl status console-setup.service' for details. */

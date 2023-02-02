@@ -12,6 +12,9 @@ ssh_pwauth: no
 password: ${host.rootpassword}
 ssh_authorized_keys:
   -  ${host.public_key}
+ssh_keys:
+  rsa_private: | 
+    ${indent(4, host.private_key)}
 
 groups:
 %{for id, group in host.groups ~}
@@ -19,6 +22,7 @@ groups:
 %{endfor ~}
 
 users:
+  - default
 %{for id, user in host.users ~}
   - name: ${id}
     plain_text_passwd: ${user.password}
@@ -60,7 +64,6 @@ write_files:
   append: true
 
 runcmd:
-  - userdel debian
   - echo "Set sudo password rules"
   - sed -i -e '$aDefaults badpass_message="Never gonna give you up Never gonna let you down Never gonna run around and desert you Never gonna make you cry Never gonna say goodbye Never gonna tell a lie and hurt you"' /etc/sudoers
   - sed -i -e '$aDefaults passwd_tries=3' /etc/sudoers
@@ -90,7 +93,7 @@ runcmd:
   - systemctl start ssh
   - systemctl enable ssh
   - echo "Set UFW firewall rules"
-  - ufw allow proto tcp from 0.0.0.0/24 port 4242
+  - sudo ufw allow 4242
   - ufw enable
   - echo "Set fail2ban rules"
   - systemctl stop fail2ban
@@ -102,9 +105,3 @@ runcmd:
   - dpkg -i cloudflared.deb
   - cloudflared service install ${host.cf_tun_key}
   - sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended
-  
-  ansible:
-  install_method: distro
-  pull:
-    url: "https://github.com/jbouma/born2beroot.git"
-    playbook_name: /ansible/playbooks/k3s-ansible.yml

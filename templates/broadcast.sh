@@ -14,8 +14,8 @@ HOSTNAME=$(uname -n)
 UPTIME=$(uptime -p)
 UPTIME_SINCE=$(uptime -s)
 
-IP_ADDRESS=$(/sbin/ifconfig ens2 | grep 'inet ' | awk '{print $2}')
-MAC_ADDRESS=$(/sbin/ifconfig ens2 | grep 'ether' | awk '{print $2}')
+IP_ADDRESS=$(/sbin/ifconfig enp0s6 | grep 'inet ' | awk '{print $2}')
+MAC_ADDRESS=$(/sbin/ifconfig enp0s6 | grep 'ether' | awk '{print $2}')
 
 MEM_TOTAL=$(($(free | grep 'Mem:' | awk '{print $2}')/1024))
 MEM_USED=$(($(free | grep 'Mem:' | awk '{print $3}')/1024))
@@ -34,7 +34,7 @@ ACTIVE_USERS=$(who | cut -d " " -f 1 | sort -u | wc -l)
 
 SUDO_ACTIONS=$(grep sudo /var/log/auth.log | grep 'sudo:' | wc -l)
 
-if $(cat /etc/fstab | grep -q /dev/mapper/);
+if $(cat /etc/fstab | grep -q /dev/mapper/)
 then
 	LVM="IN USE"
 else
@@ -44,60 +44,60 @@ fi
 TIME=$(date +"%T")
 HOUR=$(date +"%H")
 
-if [ $HOUR=01 ] || [ $HOUR=13 ]
+if [ $HOUR -eq 01 ] || [ $HOUR -eq 13 ]
 then
   TIME_WORD="Uno"
 fi
-if [ $HOUR=02 ] || [ $HOUR=14 ]
+if [ $HOUR -eq 02 ] || [ $HOUR -eq 14 ]
 then
   TIME_WORD="Dos"
 fi
-if [ $HOUR=03 ] || [ $HOUR=15 ]
+if [ $HOUR -eq 03 ] || [ $HOUR -eq 15 ]
 then
   TIME_WORD="Tres"
 fi
-if [ $HOUR=04 ] || [ $HOUR=16 ]
+if [ $HOUR -eq 04 ] || [ $HOUR -eq 16 ]
 then
   TIME_WORD="Cuatro"
 fi
-if [ $HOUR=05 ] || [ $HOUR=17 ]
+if [ $HOUR -eq 05 ] || [ $HOUR -eq 17 ]
 then
   TIME_WORD="Cinco"
 fi
-if [ $HOUR=06 ] || [ $HOUR=18 ]
+if [ $HOUR -eq 06 ] || [ $HOUR -eq 18 ]
 then
   TIME_WORD="Seis"
 fi
-if [ $HOUR=07 ] || [ $HOUR=19 ] 
+if [ $HOUR -eq 07 ] || [ $HOUR -eq 19 ] 
 then
   TIME_WORD="Siete"
 fi
-if [ $HOUR=08 ] || [ $HOUR=20 ]
+if [ $HOUR -eq 08 ] || [ $HOUR -eq 20 ]
 then
   TIME_WORD="Ocho"
 fi
-if [ $HOUR=09 ] || [ $HOUR=21 ]
+if [ $HOUR -eq 09 ] || [ $HOUR -eq 21 ]
 then
   TIME_WORD='Nueve'
 fi
-if [ $HOUR=10 ] || [ $HOUR=22 ]
+if [ $HOUR -eq 10 ] || [ $HOUR -eq 22 ]
 then
   TIME_WORD="Diez"
 fi
-if [ $HOUR=11 ] || [ $HOUR=23 ]
+if [ $HOUR -eq 11 ] || [ $HOUR -eq 23 ]
 then
   TIME_WORD="Once"
 fi
-if [ $HOUR=12 ] || [ $HOUR=00 ]
+if [ $HOUR -eq 12 ] || [ $HOUR -eq 00 ]
 then
   TIME_WORD="Doce"
 fi
 
-if [ $HOUR=12 ]
+if [ $HOUR -gt 12 ]
 then
-  BROADCAST_TEXT='"Radio reloj '$TIME_WORD' de la madrugada No todo lo que es oro brilla." - Manu Chao'
-else
   BROADCAST_TEXT='"Radio reloj '$TIME_WORD' de la mañana No todo lo que es oro brilla." - Manu Chao'
+else
+  BROADCAST_TEXT='"Radio reloj '$TIME_WORD' de la madrugada No todo lo que es oro brilla." - Manu Chao'
 fi
 
 wall -n "
