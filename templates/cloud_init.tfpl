@@ -8,14 +8,11 @@ hostname: ${name}
 manage_etc_hosts: true
 
 disable_root: true
-ssh_pwauth: yes
+ssh_pwauth: no
 password: ${host.rootpassword}
 ssh_authorized_keys:
   -  ${host.public_key}
-chpasswd:
-  expire: false
 
-# Group Root does alreay exists so we only create 42user
 groups:
 %{for id, group in host.groups ~}
   - ${group}
@@ -39,100 +36,81 @@ users:
       -  ${user.public_key}
 %{endif ~}
 %{endif ~}
-    shell: ${user.shell}
 %{endfor ~}
 
 packages:
   - fail2ban
   - ufw
-  - cryptsetup
-  - lvm2
-  - rsync
+  - curl
+  - libpam-cracklib
+  - bc
 
 package_upgrade: false
 
 runcmd:
-  - sudo systemctl stop ssh
-  - mkdir /mnt/target
-%{for diskid, disk in host.partitions ~}
-  - sgdisk -og /dev/${diskid}
-  - sgdisk %{ for id, part in disk } -n ${id}:0%{~ if can(part.size) ~}:${part.size}%{ endif }%{ endfor } /dev/${diskid}
-%{for id, part in disk ~}
-  - mkfs.ext4 %{if can(part.name)}-L ${part.name}%{endif} /dev/${diskid}${id}
-%{if can(part.boot) ~}
-  - mount /dev/${diskid}${id} /mnt/target
-  - rsync -zahP /boot/efi /mnt/target
-  - umount -l /mnt/target
-  - mount /dev/${diskid}${id} ${part.mountpoint}
-%{endif ~}
-%{endfor ~}
-%{for id, part in disk ~}
-%{if can(part.lvm) ~}
-  - echo "${host.disk_encryptionkey}" | cryptsetup -q -c aes-xts-plain -y -s 512 -h sha512 luksFormat /dev/${diskid}${id}
-  - echo "${host.disk_encryptionkey}" | cryptsetup -q luksAddKey /dev/${diskid}${id} ${part.mapper}
-  - echo "${host.disk_encryptionkey}" | cryptsetup -q luksOpen /dev/${diskid}${id} ${part.mapper}
-  - pvcreate /dev/mapper/${part.mapper} -ff
-  - vgcreate LVMGroup /dev/mapper/${part.mapper}
-%{if can(part.lvmname) ~}
-%{~ for partid, lvmpart in part.lvm ~}
-  - lvcreate -L ${lvmpart.size} -n ${partid} ${part.lvmname}
-  - mkfs.ext4 -L ${partid} /dev/${part.lvmname}/${partid}
-%{ if can(lvmpart.swap) ~}
-  - mkswap /dev/${part.lvmname}/${partid}
-  - swapon /dev/${part.lvmname}/${partid}
-%{endif ~}
-%{if can(lvmpart.mountpoint) ~}
-  - mkdir -p ${lvmpart.mountpoint}
-  - mount /dev/${part.lvmname}/${partid} /mnt/target
-  - rsync -zahP --exclude 'mnt' --exclude 'proc' --exclude 'sys' ${lvmpart.mountpoint}/ /mnt/target
-  - umount /mnt/target
-  - mount /dev/${part.lvmname}/${partid} ${lvmpart.mountpoint}/
-%{endif ~}
-%{endfor ~}
-%{endif ~}
-%{endif ~}
-%{endfor ~}
-  - rm -r /mnt/target
-%{endfor ~}
-  - ufw allow proto tcp from 0.0.0.0/24 port 4242
-  - ufw enable
+  - echo "Set sudo password rules"
+  - sed -i -e '$aDefaults badpass_message="Never gonna give you up Never gonna let you down Never gonna run around and desert you Never gonna make you cry Never gonna say goodbye Never gonna tell a lie and hurt you"' /etc/sudoers
+  - sed -i -e '$aDefaults passwd_tries=3' /etc/sudoers
+  - echo "Add sudo log rule"
+  - mkdir /var/log/sudo
+  - sed -i -e '$aDefaults log_input,log_output' /etc/sudoers
+  - sed -i -e '$aDefaults iolog_dir="/var/log/sudo"' /etc/sudoers
+  - sed -i -e '$aDefaults requiretty' /etc/sudoers
+  - echo "Add password policy"
+  - sed -i "/^PASS_MAX_DAYS.*/c\PASS_MAX_DAYS\t30" /etc/login.defs
+  - sed -i "/^PASS_MIN_DAYS.*/c\PASS_MIN_DAYS\t2" /etc/login.defs
+  - sed -i "/^PASS_WARN_AGE.*/c\PASS_WARN_AGE\t7" /etc/login.defs
+  - sed -i -e '$apassword required pam_cracklib.so minlen=10 lcredit=-1 ucredit=-1 dcredit=-1 difok=7 maxrepeat=3 reject_username' /etc/pam.d/common-password
+  - echo "Set SSH config"
+  - systemctl stop ssh
   - sed -i -e '/^\(#\|\)PermitRootLogin/s/^.*$/PermitRootLogin no/' /etc/ssh/sshd_config
-  - sed -i -e '/^\(#\|\)PasswordAuthentication/s/^.*$/PasswordAuthentication no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)PasswordAuthentication/s/^.*$/PasswordAuthentication yes/' /etc/ssh/sshd_config
   - sed -i -e '/^\(#\|\)X11Forwarding/s/^.*$/X11Forwarding no/' /etc/ssh/sshd_config
   - sed -i -e '/^\(#\|\)MaxAuthTries/s/^.*$/MaxAuthTries 2/' /etc/ssh/sshd_config
   - sed -i -e '/^\(#\|\)AllowTcpForwarding/s/^.*$/AllowTcpForwarding no/' /etc/ssh/sshd_config
   - sed -i -e '/^\(#\|\)AllowAgentForwarding/s/^.*$/AllowAgentForwarding no/' /etc/ssh/sshd_config
   - sed -i -e '/^\(#\|\)AuthorizedKeysFile/s/^.*$/AuthorizedKeysFile .ssh\/authorized_keys/' /etc/ssh/sshd_config
-  - sed -i '$a AllowUsers jbouma' /etc/ssh/sshd_config
+%{for id, user in host.users ~}
+  - sed -i '$a AllowUsers ${id}' /etc/ssh/sshd_config
+%{endfor ~}
   - sed -i "s/#Port 22/Port 4242/" /etc/ssh/sshd_config
-  - sudo systemctl start ssh
+  - systemctl start ssh
+  - systemctl enable ssh
+  - echo "Set UFW firewall rules"
+  - ufw allow proto tcp from 0.0.0.0/24 port 4242
+  - ufw enable
+  - echo "Set fail2ban rules"
+  - systemctl stop fail2ban
   - printf "[sshd]\nenabled = true\nbanaction = iptables-multiport" > /etc/fail2ban/jail.local
   - systemctl enable fail2ban
   - systemctl restart fail2ban
+  - echo "Install Cloudflared"
   - curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb 
-  - sudo dpkg -i cloudflared.deb
-  - sudo cloudflared service install ${host.cf_tun_key}
-  # - grub-install /dev/vdb1
-  
-
-  
-
-  # - sed  -i '2i /dev/mapper/crypt                                   /crypt               ext4    defaults        0 0' /etc/fstab
+  - dpkg -i cloudflared.deb
+  - cloudflared service install ${host.cf_tun_key}
 
 
 
-  # - dd bs=512 count=4 if=/dev/random of=/root/key iflag=fullblock
-  # - cryptsetup -q luksOpen /dev/vdb3 crypt --key-file /root/key
-  
-  # - mkdir /crypt
-  # - lsblk -ndo UUID /dev/vdb3 | awk '{print "UUID=" $1"        /dev/mapper/crypt    /keyfiles:/root/key   luks"}' | sudo tee /etc/crypttab
-  # - sed  -i '2i /dev/mapper/crypt                                   /crypt               ext4    defaults        0 0' /etc/fstab
-  # - lsblk -ndo UUID /dev/LVMGroup/root | sed -En  "2s/.*UUID='(.*)',/\0/p" /etc/fstab
-  # - lsblk -ndo UUID /dev/LVMGroup/home | sed -Eni  "/\0/p" /etc/fstab
-  # - lsblk -ndo UUID /dev/LVMGroup/home | awk '{print "UUID="$1"        /home                 ext4    defaults        0 0"}' | tee -a /etc/fstab
-  # - lsblk -ndo UUID /dev/LVMGroup/var | awk '{print "UUID="$1"        /var                 ext4    defaults        0 0"}' | tee -a /etc/fstab
-  # - lsblk -ndo UUID /dev/LVMGroup/srv | awk '{print "UUID="$1"        /srv                 ext4    defaults        0 0"}' | tee -a /etc/fstab
-  # - lsblk -ndo UUID /dev/LVMGroup/tmp | awk '{print "UUID="$1"        /tmp                 ext4    defaults        0 0"}' | tee -a /etc/fstab
-  # - lsblk -ndo UUID /dev/LVMGroup/var--log | awk '{print "UUID="$1"        /var/log             ext4    defaults        0 0"}' | tee -a /etc/fstab
-  # - lsblk -ndo UUID /dev/vdb1 | awk '{print "UUID="$1"        /boot                ext4    defaults        0 0"}' | tee -a /etc/fstab
-  # - mount -la
+vCPU=$(cat /proc/cpuinfo | grep processor | wc -l)
+time=$(date +"%T")
+
+if [ $(date +"%H") -gt 1 || $(date +"%H") -gt 13] then timeword = "Uno" fi
+if [ $(date +"%H") -gt 2 || $(date +"%H") -gt 14] then timeword = "Dos" fi
+if [ $(date +"%H") -gt 3 || $(date +"%H") -gt 15] then timeword = "Tres" fi
+if [ $(date +"%H") -gt 4 || $(date +"%H") -gt 16] then timeword = "Cuatro" fi
+if [ $(date +"%H") -gt 5 || $(date +"%H") -gt 17] then timeword = "Cinco" fi
+if [ $(date +"%H") -gt 6 || $(date +"%H") -gt 18] then timeword = "Seis" fi
+if [ $(date +"%H") -gt 7 || $(date +"%H") -gt 19] then timeword = "Siete" fi
+if [ $(date +"%H") -gt 8 || $(date +"%H") -gt 20] then timeword = "Ocho" fi
+if [ $(date +"%H") -gt 9 || $(date +"%H") -gt 21] then timeword = "Nueve" fi
+if [ $(date +"%H") -gt 10 || $(date +"%H") -gt 22] then timeword = "Diez" fi
+if [ $(date +"%H") -gt 11 || $(date +"%H") -gt 23] then timeword = "Once" fi
+if [ $(date +"%H") -gt 12 || $(date +"%H") -gt 0] then timeword = "Doce" fi
+
+if [ $(date +"%H") -gt 12 ]
+then
+  broadcast='"Radio reloj $timeword de la madrugada No todo lo que es oro brilla" - Manu Chao'
+else
+  broadcast='"Radio reloj $timeword de la mañana No todo lo que es oro brilla" - Manu Chao'
+fi
+echo "vCPU(s)\t:\t$vCPU"
