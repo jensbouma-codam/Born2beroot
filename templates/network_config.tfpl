@@ -1,6 +1,6 @@
 version: 2
 ethernets:
-  enp1s0:
+  ens2:
 %{if host.ip == "dhcp" ~}
     dhcp4: true
 %{ endif ~}

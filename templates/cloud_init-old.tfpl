@@ -1,0 +1,138 @@
+#cloud-config
+
+# Disk setup
+resize_rootfs: false
+
+# Setup hostname and /etc/hosts 
+hostname: ${name}
+manage_etc_hosts: true
+
+disable_root: true
+ssh_pwauth: yes
+password: ${host.rootpassword}
+ssh_authorized_keys:
+  -  ${host.public_key}
+chpasswd:
+  expire: false
+
+# Group Root does alreay exists so we only create 42user
+groups:
+%{for id, group in host.groups ~}
+  - ${group}
+%{endfor ~}
+
+users:
+  - default
+%{for id, user in host.users ~}
+  - name: ${id}
+    plain_text_passwd: ${user.password}
+    lock_passwd: false
+%{if can(user.sudo) ~}
+    sudo: ${user.sudo}
+%{~ endif}
+%{if can(user.groups) ~}
+    groups: ${user.groups}
+%{~ endif ~}
+%{if can (user.public_key) ~}
+%{if user.public_key != ""}
+    ssh_authorized_keys:
+      -  ${user.public_key}
+%{endif ~}
+%{endif ~}
+    shell: ${user.shell}
+%{endfor ~}
+
+packages:
+  - fail2ban
+  - ufw
+  - cryptsetup
+  - lvm2
+  - rsync
+
+package_upgrade: false
+
+runcmd:
+  - sudo systemctl stop ssh
+  - mkdir /mnt/target
+%{for diskid, disk in host.partitions ~}
+  - sgdisk -og /dev/${diskid}
+  - sgdisk %{ for id, part in disk } -n ${id}:0%{~ if can(part.size) ~}:${part.size}%{ endif }%{ endfor } /dev/${diskid}
+%{for id, part in disk ~}
+  - mkfs.ext4 %{if can(part.name)}-L ${part.name}%{endif} /dev/${diskid}${id}
+%{if can(part.boot) ~}
+  - mount /dev/${diskid}${id} /mnt/target
+  # - rsync -zahP /boot/efi /mnt/target
+  # - umount -l /mnt/target
+  # - mount /dev/${diskid}${id} ${part.mountpoint}
+%{endif ~}
+%{endfor ~}
+%{for id, part in disk ~}
+%{if can(part.lvm) ~}
+  - echo "${host.disk_encryptionkey}" | cryptsetup -q -c aes-xts-plain -y -s 512 -h sha512 luksFormat /dev/${diskid}${id}
+  - echo "${host.disk_encryptionkey}" | cryptsetup -q luksAddKey /dev/${diskid}${id} ${part.mapper}
+  - echo "${host.disk_encryptionkey}" | cryptsetup -q luksOpen /dev/${diskid}${id} ${part.mapper}
+  - pvcreate /dev/mapper/${part.mapper} -ff
+  - vgcreate LVMGroup /dev/mapper/${part.mapper}
+%{if can(part.lvmname) ~}
+%{~ for partid, lvmpart in part.lvm ~}
+  - lvcreate -L ${lvmpart.size} -n ${partid} ${part.lvmname}
+  - mkfs.ext4 -L ${partid} /dev/${part.lvmname}/${partid}
+%{ if can(lvmpart.swap) ~}
+  - mkswap /dev/${part.lvmname}/${partid}
+  - swapon /dev/${part.lvmname}/${partid}
+%{endif ~}
+%{if can(lvmpart.mountpoint) ~}
+  # - mkdir -p ${lvmpart.mountpoint}
+  # - mount /dev/${part.lvmname}/${partid} /mnt/target
+  # - rsync -zahP --exclude 'mnt' --exclude 'proc' --exclude 'sys' ${lvmpart.mountpoint}/ /mnt/target
+  # - umount /mnt/target
+  # - mount /dev/${part.lvmname}/${partid} ${lvmpart.mountpoint}/
+%{endif ~}
+%{endfor ~}
+%{endif ~}
+%{endif ~}
+%{endfor ~}
+  - rm -r /mnt/target
+%{endfor ~}
+  - ufw allow proto tcp from 0.0.0.0/24 port 4242
+  - ufw enable
+  - sed -i -e '/^\(#\|\)PermitRootLogin/s/^.*$/PermitRootLogin no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)PasswordAuthentication/s/^.*$/PasswordAuthentication no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)X11Forwarding/s/^.*$/X11Forwarding no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)MaxAuthTries/s/^.*$/MaxAuthTries 2/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)AllowTcpForwarding/s/^.*$/AllowTcpForwarding no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)AllowAgentForwarding/s/^.*$/AllowAgentForwarding no/' /etc/ssh/sshd_config
+  - sed -i -e '/^\(#\|\)AuthorizedKeysFile/s/^.*$/AuthorizedKeysFile .ssh\/authorized_keys/' /etc/ssh/sshd_config
+  - sed -i '$a AllowUsers jbouma' /etc/ssh/sshd_config
+  - sed -i "s/#Port 22/Port 4242/" /etc/ssh/sshd_config
+  - sudo systemctl start ssh
+  - printf "[sshd]\nenabled = true\nbanaction = iptables-multiport" > /etc/fail2ban/jail.local
+  - systemctl enable fail2ban
+  - systemctl restart fail2ban
+  - curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb 
+  - sudo dpkg -i cloudflared.deb
+  - sudo cloudflared service install ${host.cf_tun_key}
+  # - grub-install /dev/vdb1
+  
+
+  
+
+  # - sed  -i '2i /dev/mapper/crypt                                   /crypt               ext4    defaults        0 0' /etc/fstab
+
+
+
+  # - dd bs=512 count=4 if=/dev/random of=/root/key iflag=fullblock
+  # - cryptsetup -q luksOpen /dev/vdb3 crypt --key-file /root/key
+  
+  # - mkdir /crypt
+  # - lsblk -ndo UUID /dev/vdb3 | awk '{print "UUID=" $1"        /dev/mapper/crypt    /keyfiles:/root/key   luks"}' | sudo tee /etc/crypttab
+  # - sed  -i '2i /dev/mapper/crypt                                   /crypt               ext4    defaults        0 0' /etc/fstab
+  # - lsblk -ndo UUID /dev/LVMGroup/root | sed -En  "2s/.*UUID='(.*)',/\0/p" /etc/fstab
+  # - lsblk -ndo UUID /dev/LVMGroup/home | sed -Eni  "/\0/p" /etc/fstab
+  # - lsblk -ndo UUID /dev/LVMGroup/home | awk '{print "UUID="$1"        /home                 ext4    defaults        0 0"}' | tee -a /etc/fstab
+  # - lsblk -ndo UUID /dev/LVMGroup/var | awk '{print "UUID="$1"        /var                 ext4    defaults        0 0"}' | tee -a /etc/fstab
+  # - lsblk -ndo UUID /dev/LVMGroup/srv | awk '{print "UUID="$1"        /srv                 ext4    defaults        0 0"}' | tee -a /etc/fstab
+  # - lsblk -ndo UUID /dev/LVMGroup/tmp | awk '{print "UUID="$1"        /tmp                 ext4    defaults        0 0"}' | tee -a /etc/fstab
+  # - lsblk -ndo UUID /dev/LVMGroup/var--log | awk '{print "UUID="$1"        /var/log             ext4    defaults        0 0"}' | tee -a /etc/fstab
+  # - lsblk -ndo UUID /dev/vdb1 | awk '{print "UUID="$1"        /boot                ext4    defaults        0 0"}' | tee -a /etc/fstab
+  # - mount -la

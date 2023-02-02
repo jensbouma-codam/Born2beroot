@@ -5,3 +5,4 @@ terraform.tfvars
 *.tfstate.*
 socket_vmnet
 .terraform
+templates/base_image_v1.qcow2

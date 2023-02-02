@@ -20,17 +20,11 @@ locals {
         password = random_password.user_password.result
         public_key = file("~/.ssh/id_rsa.pub")
         /* sudo = "ALL=(ALL) NOPASSWD:ALL" For no password SUDO*/
-        sudo = "ALL=(ALL) ALL"
-        shell = "/bin/bash"
+        sudo = "ALL=(ALL)"
         groups = "root, 42user"
-        /* shell = "/bin/tty" */
-    }
-    "test" = {
-        password = "test"
-        shell = "/bin/tty"
     }
   }
-  partitions = {
+  /* partitions = {
     vdb = {
       1 = {
         size = "+500M"
@@ -41,7 +35,7 @@ locals {
       2 = {
         size = "+1K"
       }
-      3 = {
+      5 = {
         name = "crypt"
         mapper = "crypt"
         lvmname = "LVMGroup"
@@ -77,7 +71,7 @@ locals {
         }
       }
     }
-  }
+  } */
 }
 
 /* Create cloud-init userdata from template file */
@@ -115,23 +109,22 @@ resource "libvirt_cloudinit_disk" "cloud-init" {
   pool           = libvirt_pool.debian.name 
 }
 
+/* Create worker image for each VM from main image */
+/* resource "libvirt_volume" "workerimage" {
+  for_each = local.vms
+  name   = "${each.key}-cloudimage.qcow2"
+  pool   = libvirt_pool.debian.name
+  base_volume_id = libvirt_volume.masterimage.id
+  format = "qcow2"
+} */
 
 /* Create worker image for each VM from main image */
 resource "libvirt_volume" "workerimage" {
   for_each = local.vms
   name   = "${each.key}-cloudimage.qcow2"
   pool   = libvirt_pool.debian.name
-  base_volume_id = libvirt_volume.masterimage.id
+  source = "${path.module}/templates/base_image_v1.qcow2"
   format = "qcow2"
-}
-
-/* Create datadisk for each VM */
-resource "libvirt_volume" "datadisk" {
-  for_each = local.vms
-  name   = "${each.key}-datadisk.qcow2"
-  pool   = libvirt_pool.debian.name
-  format = "qcow2"
-  size   = 33071248180
 }
 
 /* Create each VM */
@@ -141,8 +134,8 @@ resource "libvirt_domain" "domain-debian" {
   ]
   for_each = local.vms
   name   = each.key
-  memory = 4096
-  vcpu   = 2
+  memory = 8096
+  vcpu   = 4
   arch = "x86_64"
   machine = "pc"
   network_interface {
@@ -154,14 +147,11 @@ resource "libvirt_domain" "domain-debian" {
     target_port = "0"
     target_type = "serial"
   }
-
+ 
   disk {
     volume_id = libvirt_volume.workerimage[each.key].id
+    scsi = "true"
   }
 
-  disk {
-    volume_id = libvirt_volume.datadisk[each.key].id
-  }
-
-  /* cloudinit = libvirt_cloudinit_disk.cloud-init[each.key].id */
+  cloudinit = libvirt_cloudinit_disk.cloud-init[each.key].id
 }
